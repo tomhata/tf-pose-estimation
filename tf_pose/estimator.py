@@ -417,9 +417,10 @@ class TfPoseEstimator:
                     continue
 
                 body_part = human.body_parts[i]
+                point_size = int(body_part.score * 6 + 3)
                 center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
                 centers[i] = center
-                cv2.circle(npimg, center, 3, common.CocoColors[i], thickness=3, lineType=8, shift=0)
+                cv2.circle(npimg, center, point_size, common.CocoColors[i], thickness=-1, lineType=8, shift=0)
 
             # draw line
             for pair_order, pair in enumerate(common.CocoPairsRender):

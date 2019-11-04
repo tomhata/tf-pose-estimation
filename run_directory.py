@@ -3,17 +3,18 @@ import logging
 import time
 import glob
 import ast
+import json
 import os
 import dill
 
-import common
+from tf_pose import common
 import cv2
 import numpy as np
-from estimator import TfPoseEstimator
-from networks import get_graph_path, model_wh
+from tf_pose.estimator import TfPoseEstimator
+from tf_pose.networks import get_graph_path, model_wh
 
-from lifting.prob_model import Prob3dPose
-from lifting.draw import plot_pose
+# from lifting.prob_model import Prob3dPose
+# from lifting.draw import plot_pose
 
 logger = logging.getLogger('TfPoseEstimator')
 logger.setLevel(logging.DEBUG)
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         # estimate human poses from a single image !
         image = common.read_imgfile(file, None, None)
         t = time.time()
-        humans = e.inference(image, scales=scales)
+        humans = e.inference(image, resize_to_default=True, upsample_size=4)
         elapsed = time.time() - t
 
         logger.info('inference image #%d: %s in %.4f seconds.' % (i, file, elapsed))
@@ -55,3 +56,4 @@ if __name__ == '__main__':
 
     with open(os.path.join(args.folder, 'pose.dil'), 'wb') as f:
         dill.dump(all_humans, f, protocol=dill.HIGHEST_PROTOCOL)
+

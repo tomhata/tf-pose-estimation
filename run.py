@@ -1,5 +1,8 @@
 import argparse
+from datetime import datetime
+import json
 import logging
+import os
 import sys
 import time
 
@@ -8,6 +11,7 @@ import cv2
 import numpy as np
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose.networks import get_graph_path, model_wh
+from tf_pose.json_tools import humans_to_keypoints_dict
 
 logger = logging.getLogger('TfPoseEstimatorRun')
 logger.handlers.clear()
@@ -29,8 +33,22 @@ if __name__ == '__main__':
                              'default=0x0, Recommends : 432x368 or 656x368 or 1312x736 ')
     parser.add_argument('--resize-out-ratio', type=float, default=4.0,
                         help='if provided, resize heatmaps before they are post-processed. default=1.0')
-
+    parser.add_argument('--log', type=str, required=False, default=None)
+    parser.add_argument('--output', type=str, required=False, default=None)
     args = parser.parse_args()
+
+    file_name = os.path.basename(args.image)
+    file_prefix = os.path.splitext(file_name)[0]
+
+    if args.log:
+        log_name = args.log
+    else:
+        log_name = f"{file_prefix}-keypoints.json"
+    if args.output:
+        output_name = args.output
+    else:
+        output_name = f"{file_prefix}-output.png"
+
 
     w, h = model_wh(args.resize)
     if w == 0 or h == 0:
@@ -40,6 +58,7 @@ if __name__ == '__main__':
 
     # estimate human poses from a single image !
     image = common.read_imgfile(args.image, None, None)
+
     if image is None:
         logger.error('Image can not be read, path=%s' % args.image)
         sys.exit(-1)
@@ -50,7 +69,23 @@ if __name__ == '__main__':
 
     logger.info('inference image: %s in %.4f seconds.' % (args.image, elapsed))
 
-    image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
+    image_final = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
+    keypoints_dict = humans_to_keypoints_dict(humans)
+
+    scene_dict = {
+        "datetime": datetime.utcnow().strftime("%Y%m%d-%H%M"),
+        "file_name": file_name,
+        "model_height": h,
+        "model_width": w,
+        "source_height": image.shape[1],
+        "source_width": image.shape[0],
+        "model": args.model,
+        "frames": keypoints_dict,
+    }
+
+    cv2.imwrite(output_name, image_final)
+    with open(log_name, "w") as f:
+        json.dump(scene_dict, f, indent=4)
 
     try:
         import matplotlib.pyplot as plt
@@ -58,9 +93,9 @@ if __name__ == '__main__':
         fig = plt.figure()
         a = fig.add_subplot(2, 2, 1)
         a.set_title('Result')
-        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        plt.imshow(cv2.cvtColor(image_final, cv2.COLOR_BGR2RGB))
 
-        bgimg = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_BGR2RGB)
+        bgimg = cv2.cvtColor(image_final.astype(np.uint8), cv2.COLOR_BGR2RGB)
         bgimg = cv2.resize(bgimg, (e.heatMat.shape[1], e.heatMat.shape[0]), interpolation=cv2.INTER_AREA)
 
         # show network output
@@ -88,5 +123,5 @@ if __name__ == '__main__':
         plt.show()
     except Exception as e:
         logger.warning('matplitlib error, %s' % e)
-        cv2.imshow('result', image)
+        cv2.imshow('result', image_final)
         cv2.waitKey()
