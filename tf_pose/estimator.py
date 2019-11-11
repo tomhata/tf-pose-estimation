@@ -412,12 +412,15 @@ class TfPoseEstimator:
         centers = {}
         for human in humans:
             # draw point
-            for i in range(common.CocoPart.Background.value):
+            select_pts = [0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 16, 17]
+            # for i in range(common.CocoPart.Background.value):
+            for i in select_pts:
                 if i not in human.body_parts.keys():
                     continue
 
                 body_part = human.body_parts[i]
-                point_size = int(body_part.score * 6 + 3)
+                # point_size = int(body_part.score * 6 + 3)
+                point_size = 5
                 center = (int(body_part.x * image_w + 0.5), int(body_part.y * image_h + 0.5))
                 centers[i] = center
                 cv2.circle(npimg, center, point_size, common.CocoColors[i], thickness=-1, lineType=8, shift=0)
